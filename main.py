@@ -1,6 +1,11 @@
 import pygame
 import math
-from assets.pygameAssets import basic_gun
+import random
+import time
+from assets.pygameAssets import basic_gun, basic_enemy, basic_bullet
+from logic.enemyLogic import move_enemy, find_vectors
+from logic.gunLogic import fire_gun, despawn_check
+
 background_colour = (0, 0, 0)
 screen = pygame.display.set_mode((300, 300), pygame.RESIZABLE)
 pygame.display.set_caption('Resolute')
@@ -12,13 +17,18 @@ cord_grid_size = 735
 # - guns is a list of gun
 # - enemies is a list of active enemies
 # - bullets is a list of bullets currently in the game field
+# - ticks is a count of the game loop
 game_state = {"guns": [{"cord": (35, 35),
                                                                 "health": 100,
                                                                 "reload_timer": 2,
                                                                 "reload_time": 5,
                                                                 "damage": 10,
                                                                 "velocity": 800,
-                                                                "id": 123456}], "enemies": [], "bullets": [], "objects": []}
+                                                                "id": 123456}],
+              "enemies": [],
+              "bullets": [],
+              "objects": [],
+              "ticks": 0}
 
 # gun is a gun on the game field
 # gun is a dict where
@@ -30,6 +40,16 @@ game_state = {"guns": [{"cord": (35, 35),
 # velocity provides the speed of the bullet in pixels per second
 # id is a random 6 digit number representing a gun object
 gun_example = {"cord": (), "health": 100, "reload_timer": 2, "reload_time": 5, "damage": 10, "velocity": 800, "id": 123456}
+
+# bullet is a bullet on the game field
+# bullet is a dict where
+# - cord is the cord of bullet
+# - damage is the damage a bullet inflicts
+# - size is the size of bullet
+# - x_velocity is the x vel of bullet
+# - y_velocity is the y vel of bullet
+bullet_example = {"cords": (), "damage": 10, "size": 3, "x_velocity":100, "y_velocity":100}
+
 
 # enemy is an enemy entitiy activly on the game field
 # a enemy is a dict where
@@ -81,11 +101,58 @@ def validate_placement():
     else:
         return True
 
+# Creates an ID for an entity
+def get_id():
+    id_proposed = random.randint(100000, 999999)
+    for gun  in game_state["guns"]:
+        if gun["id"] == id_proposed:
+            return get_id()
+
+    for enemy in game_state["enemies"]:
+        if enemy["id"] == id_proposed:
+            return get_id()
+
+    return id_proposed
+
+# Finds the nearest player gun to a given cord set
+def find_gun(cords):
+    leader = (None, (367, 367))
+
+    for gun in game_state["guns"]:
+        distance = math.sqrt(((gun["cord"][0] - cords[0]) ** 2) + ((gun["cord"][1] - cords[1]) ** 2))
+        if leader[0] == None:
+            leader = (distance, (gun["cord"][0], gun["cord"][1]))
+        elif distance < leader[0]:
+            leader = (distance, (gun["cord"][0], gun["cord"][1]))
+
+    return leader[1]
+
+# Finds nearest enemy from cords
+def find_enemy(cords):
+    leader = (None, (367, 367))
+
+    for enemy in game_state["enemies"]:
+        distance = math.sqrt(((enemy["cord"][0] - cords[0]) ** 2) + ((enemy["cord"][1] - cords[1]) ** 2))
+        if leader[0] == None:
+            leader = (distance, (enemy["cord"][0], enemy["cord"][1]))
+        elif distance < leader[0]:
+            leader = (distance, (enemy["cord"][0], enemy["cord"][1]))
+
+    return leader[1]
+
+
+
+
+
 running = True
 item_placement = False
 
 # game loop
 while running:
+    start = time.process_time()
+    if game_state["ticks"] >= 24:
+        game_state["ticks"] = 0
+
     # Creates the initial cord grid given grid size and offset
     for i in range(math.floor(cord_grid_size / cord_grid_offset)):
         pygame.draw.line(screen, (211, 211, 211), ((cord_grid_offset * i + cord_grid_offset), 0), ((cord_grid_offset * i + cord_grid_offset), cord_grid_size), 1)
@@ -97,17 +164,80 @@ while running:
         if item['type'] == "basic":
             basic_gun(pygame, screen, item["x"], item["y"])
 
-    # Renders guns
+    # Renders and fires guns
     for gun in game_state["guns"]:
+        if gun["reload_timer"] <= 0:
+            target_cords = find_enemy((gun["cord"][0] + 17.5, gun["cord"][1] + 17.5))
+            fire_gun((gun["cord"][0] + 17.5, gun["cord"][1] + 17.5), target_cords, gun["damage"],gun["velocity"], 3, game_state)
+            gun["reload_timer"] = gun["reload_time"]
+        else:
+            gun["reload_timer"] -= 1
+
         basic_gun(pygame, screen, gun["cord"][0], gun["cord"][1])
 
+    for bullet in enumerate(game_state["bullets"]):
+        despawn_ck = despawn_check(bullet[1]["cords"], game_state)
+        if despawn_ck[0]:
+            game_state["bullets"].pop(bullet[0])
+            if not despawn_ck[1] == None:
+                damage = bullet[1]["damage"]
+
+                for enemy in enumerate(game_state["enemies"]):
+                    if despawn_ck[1] == enemy[1]["id"]:
+                        enemy[1]["health"] -= damage
+                        if enemy[1]["health"] <= 0:
+                            game_state["enemies"].pop(enemy[0])
+            pass
+
+        x = bullet[1]["cords"][0] + bullet[1]["x_velocity"]
+        y = bullet[1]["cords"][1] + bullet[1]["y_velocity"]
+
+        bullet[1]["cords"] = (x, y)
+        basic_bullet(pygame, screen, x, y, bullet[1]["size"])
+
+
+
+    # Renders and moves enemies
+    for enemy in game_state["enemies"]:
+        enemy["target_cord"] = find_gun(enemy["cord"])
+        move_enemy(enemy, game_state)
+        basic_enemy(pygame, screen, enemy["cord"][0], enemy["cord"][1])
+
+    # creates an enemy and adds it to the gamestate
+    if game_state["ticks"] == 0:
+        # wall picks the wall the enemy will spawn against
+        wall = random.randint(1,4)
+        random_pos = random.randint(0,735)
+
+        if wall == 1:
+            cords = (random_pos, 0)
+        elif wall == 2:
+            cords = (735, random_pos)
+        elif wall == 3:
+            cords = (random_pos, 735)
+        else:
+            cords = (0, random_pos)
+
+        target_cords = find_gun(cords)
+        x_vector, y_vector = find_vectors(cords, target_cords)
+
+        id = get_id()
+
+        enemy_add = {"cord": cords, "health": 100, "target_cord": target_cords, "x_velocity": x_vector, "y_velocity": y_vector,
+                         "id": id}
+
+        game_state["enemies"].append(enemy_add)
+
     pygame.display.flip()
+    screen.fill(background_colour)
     # for loop through the event queue
     for event in pygame.event.get():
 
         # Check for QUIT event
         if event.type == pygame.QUIT:
+            print(game_state)
             running = False
+        
 
         # checks if the mouse is being pressed
         if pygame.mouse.get_pressed()[0]:
@@ -119,11 +249,17 @@ while running:
                 item_placement = False
                 x = math.floor(pygame.mouse.get_pos()[0] / 35) * 35
                 y = math.floor(pygame.mouse.get_pos()[1] / 35) * 35
+                id = get_id()
                 game_state["guns"].append({"cord": (x, y),
                                                                 "health": 100,
                                                                 "reload_timer": 2,
                                                                 "reload_time": 5,
-                                                                "damage": 10,
-                                                                "velocity": 800,
-                                                                "id": 123456})
+                                                                "damage": 25,
+                                                                "velocity": 10,
+                                                                "id": id})
 
+    end = time.process_time()
+    delta = end - start
+    if delta < 0.0417:
+        time.sleep(0.0417 - delta)
+    game_state["ticks"] += 1
