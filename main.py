@@ -134,6 +134,12 @@ def find_enemy(cords):
 
     return leader[1]
 
+# Checks if the mouse if over an active gun
+
+def remove_gun(cords):
+    for gun in enumerate(game_state["guns"]):
+        if gun[1]["cord"][0] <= cords[0] < (gun[1]["cord"][0] + 35) and gun[1]["cord"][1] <= cords[1] < (gun[1]["cord"][1] + 35):
+            game_state["guns"].pop(gun[0])
 
 
 
@@ -239,6 +245,8 @@ while running:
                 item_check_res, item_type = check_menu(pygame.mouse.get_pos())
                 if item_check_res:
                     item_placement = True
+                else:
+                    remove_gun(pygame.mouse.get_pos())
             elif validate_placement():
                 item_placement = False
                 x = math.floor(pygame.mouse.get_pos()[0] / 35) * 35
