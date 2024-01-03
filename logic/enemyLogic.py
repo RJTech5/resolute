@@ -5,7 +5,10 @@ def find_vectors(cords1, cords2):
     speed = 2
     x_distance = abs(cords2[0] - cords1[0])
     y_distance = abs(cords2[1] - cords1[1])
-    angle = math.degrees(math.atan(x_distance/y_distance))
+    try:
+        angle = math.degrees(math.atan(x_distance/y_distance))
+    except:
+        angle = 0
     angle_a = math.radians(180 - (90 + angle))
     x_velocity = math.cos(angle_a) * speed
     y_velocity = math.sin(angle_a) * speed

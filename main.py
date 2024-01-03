@@ -123,16 +123,16 @@ def find_gun(cords):
 
 # Finds nearest enemy from cords
 def find_enemy(cords):
-    leader = (None, (367, 367))
+    leader = (None, (367, 367), None)
 
     for enemy in game_state["enemies"]:
         distance = math.sqrt(((enemy["cord"][0] - cords[0]) ** 2) + ((enemy["cord"][1] - cords[1]) ** 2))
         if leader[0] == None:
-            leader = (distance, (enemy["cord"][0], enemy["cord"][1]))
+            leader = (distance, (enemy["cord"][0], enemy["cord"][1]), enemy)
         elif distance < leader[0]:
-            leader = (distance, (enemy["cord"][0], enemy["cord"][1]))
+            leader = (distance, (enemy["cord"][0], enemy["cord"][1]), enemy)
 
-    return leader[1]
+    return leader[1], leader[2]
 
 # Checks if the mouse if over an active gun
 
@@ -167,9 +167,10 @@ while running:
     # Renders and fires guns
     for gun in game_state["guns"]:
         if gun["reload_timer"] <= 0:
-            target_cords = find_enemy((gun["cord"][0] + 17.5, gun["cord"][1] + 17.5))
-            fire_gun((gun["cord"][0] + 17.5, gun["cord"][1] + 17.5), target_cords, gun["damage"],gun["velocity"], 3, game_state)
-            gun["reload_timer"] = gun["reload_time"]
+            target_cords, enemy = find_enemy((gun["cord"][0] + 17.5, gun["cord"][1] + 17.5))
+            if not enemy == None:
+                fire_gun((gun["cord"][0] + 17.5, gun["cord"][1] + 17.5), target_cords, gun["damage"],gun["velocity"], 3, game_state, enemy)
+                gun["reload_timer"] = gun["reload_time"]
         else:
             gun["reload_timer"] -= 1
 
@@ -204,7 +205,8 @@ while running:
         basic_enemy(pygame, screen, enemy["cord"][0], enemy["cord"][1])
 
     # creates an enemy and adds it to the gamestate
-    if game_state["ticks"] == 0:
+    # if game_state["ticks"] == 0:
+    if random.randint(0, 100) == 0:
         # wall picks the wall the enemy will spawn against
         wall = random.randint(1,4)
         random_pos = random.randint(0,735)
