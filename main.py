@@ -18,13 +18,7 @@ cord_grid_size = 735
 # - enemies is a list of active enemies
 # - bullets is a list of bullets currently in the game field
 # - ticks is a count of the game loop
-game_state = {"guns": [{"cord": (35, 35),
-                                                                "health": 100,
-                                                                "reload_timer": 2,
-                                                                "reload_time": 5,
-                                                                "damage": 10,
-                                                                "velocity": 800,
-                                                                "id": 123456}],
+game_state = {"guns": [],
               "enemies": [],
               "bullets": [],
               "objects": [],
