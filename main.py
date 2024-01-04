@@ -37,7 +37,7 @@ game_state = {"guns": [],
               "wave_sum": 0,
               "wave_left": 0,
               "next_wave": 360,
-              "running_score": 0,}
+              "running_score": 1000,}
 
 # gun is a gun on the game field
 # gun is a dict where
@@ -175,6 +175,18 @@ while running:
         pygame.draw.line(screen, (211, 211, 211), (0, (cord_grid_offset * i)), (cord_grid_size, (cord_grid_offset * i)),
                          1)
 
+    # Draws text on side of screen
+    text_side_stats = [f"Wave: {game_state['wave_count']}",
+                        f"Seconds Till Next Wave: {round((game_state['next_wave'] - game_state['tot_ticks'])/24)}",
+                        f"Health Bank: {game_state['running_score']}"]
+    font = pygame.font.Font(None, 36)
+    start_x_y = (805, 100)
+    for text in enumerate(text_side_stats):
+        text_surface = font.render(text[1], True, (255, 255, 255))
+        text_rect = text_surface.get_rect()
+        text_rect.topleft = (start_x_y[0], start_x_y[1] + 40 * text[0])
+        screen.blit(text_surface, text_rect)
+
     # Creates menu items selectable by player
     for item in menu_items:
         if item['type'] == "basic":
@@ -206,6 +218,12 @@ while running:
                 for enemy in enumerate(game_state["enemies"]):
                     if despawn_ck[1] == enemy[1]["id"]:
                         enemy[1]["health"] -= damage
+
+                        if enemy[1]["health"] <= damage:
+                            game_state["running_score"] += enemy[1]["health"]
+                        else:
+                            game_state["running_score"] += damage
+
                         if enemy[1]["health"] <= 0:
                             game_state["enemies"].pop(enemy[0])
             pass
@@ -283,15 +301,24 @@ while running:
         if pygame.mouse.get_pressed()[0]:
             if item_placement == False:
                 item_check_res, item_type = check_menu(pygame.mouse.get_pos())
-                if item_check_res:
+                if item_check_res and game_state["running_score"] >= 100:
                     item_placement = True
-                else:
+                elif remove_stop == False:
                     remove_gun(pygame.mouse.get_pos())
             elif validate_placement():
                 item_placement = False
+                remove_stop = True
                 x = math.floor(pygame.mouse.get_pos()[0] / 35) * 35
                 y = math.floor(pygame.mouse.get_pos()[1] / 35) * 35
                 id = get_id()
+                game_state["running_score"] -= 100
+                print({"cord": (x, y),
+                                                                "health": 100,
+                                                                "reload_timer": 2,
+                                                                "reload_time": 5,
+                                                                "damage": 25,
+                                                                "velocity": 10,
+                                                                "id": id})
                 game_state["guns"].append({"cord": (x, y),
                                                                 "health": 100,
                                                                 "reload_timer": 2,
@@ -299,6 +326,8 @@ while running:
                                                                 "damage": 25,
                                                                 "velocity": 10,
                                                                 "id": id})
+        else:
+            remove_stop = False
 
     end = time.process_time()
     delta = end - start
