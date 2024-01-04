@@ -11,6 +11,8 @@ screen = pygame.display.set_mode((300, 300), pygame.RESIZABLE)
 pygame.display.set_caption('Resolute')
 cord_grid_offset = 35
 cord_grid_size = 735
+wave_increment = 360
+wave_duration = 800
 
 # game_state contains all information needed to run the game simulation
 # game_state is a dict where
@@ -18,11 +20,23 @@ cord_grid_size = 735
 # - enemies is a list of active enemies
 # - bullets is a list of bullets currently in the game field
 # - ticks is a count of the game loop
+# - tot_ticks is the total number of ticks that I have gone by
+# - wave_count is the number of waves that have occured
+# - wave_sum is the sum of enemies in the current wave
+# - wave_left is the number of enemies yet to spawn in a wave
+# - next_wave is when the next wave will spawn in game ticks
+# - running_score is the score of the game
 game_state = {"guns": [],
               "enemies": [],
               "bullets": [],
               "objects": [],
-              "ticks": 0}
+              "ticks": 0,
+              "tot_ticks": 0,
+              "wave_count": 0,
+              "wave_sum": 0,
+              "wave_left": 0,
+              "next_wave": 360,
+              "running_score": 0,}
 
 # gun is a gun on the game field
 # gun is a dict where
@@ -176,6 +190,7 @@ while running:
 
         basic_gun(pygame, screen, gun["cord"][0], gun["cord"][1])
 
+    # renders and moves bullets
     for bullet in enumerate(game_state["bullets"]):
         despawn_ck = despawn_check(bullet[1]["cords"], game_state)
         if despawn_ck[0]:
@@ -205,30 +220,47 @@ while running:
         basic_enemy(pygame, screen, enemy["cord"][0], enemy["cord"][1])
 
     # creates an enemy and adds it to the gamestate
-    # if game_state["ticks"] == 0:
-    if random.randint(0, 100) == 0:
-        # wall picks the wall the enemy will spawn against
-        wall = random.randint(1,4)
-        random_pos = random.randint(0,735)
+    if game_state["tot_ticks"] >= game_state["next_wave"]:
+        spawn_tot = random.randint(10, 50) * (game_state["wave_count"] + 1)
+        game_state["wave_left"] = spawn_tot
+        game_state["wave_sum"] = spawn_tot
+        game_state["next_wave"] = game_state["tot_ticks"] + wave_duration
 
-        if wall == 1:
-            cords = (random_pos, 0)
-        elif wall == 2:
-            cords = (735, random_pos)
-        elif wall == 3:
-            cords = (random_pos, 735)
-        else:
-            cords = (0, random_pos)
+    # finds the number of enemies to spawn within 1 second
+    if game_state["wave_left"] > 0 and game_state["ticks"] == 0:
+        number_spawn = random.randint(0,25)
+        if number_spawn >= game_state["wave_left"]:
+            number_spawn = game_state["wave_left"]
 
-        target_cords = find_gun(cords)
-        x_vector, y_vector = find_vectors(cords, target_cords)
+        game_state["wave_left"] -= number_spawn
 
-        id = get_id()
+        if game_state["wave_left"] <= 0:
+            game_state["wave_left"] = 0
+            game_state["wave_count"] += 1
 
-        enemy_add = {"cord": cords, "health": 100, "target_cord": target_cords, "x_velocity": x_vector, "y_velocity": y_vector,
-                         "id": id}
+        for i in range(number_spawn):
+            # wall picks the wall the enemy will spawn against
+            wall = random.randint(1,4)
+            random_pos = random.randint(0,735)
 
-        game_state["enemies"].append(enemy_add)
+            if wall == 1:
+                cords = (random_pos, 0)
+            elif wall == 2:
+                cords = (735, random_pos)
+            elif wall == 3:
+                cords = (random_pos, 735)
+            else:
+                cords = (0, random_pos)
+
+            target_cords = find_gun(cords)
+            x_vector, y_vector = find_vectors(cords, target_cords)
+
+            id = get_id()
+
+            enemy_add = {"cord": cords, "health": 100, "target_cord": target_cords, "x_velocity": x_vector, "y_velocity": y_vector,
+                             "id": id}
+
+            game_state["enemies"].append(enemy_add)
 
     pygame.display.flip()
     screen.fill(background_colour)
@@ -267,3 +299,4 @@ while running:
     if delta < 0.0417:
         time.sleep(0.0417 - delta)
     game_state["ticks"] += 1
+    game_state["tot_ticks"] += 1
