@@ -32,3 +32,17 @@ def move_enemy(enemy, game_state):
 
 
     return game_state
+
+def check_gun_collision(cords, game_state, damage):
+    for gun in game_state["guns"]:
+        if gun["cord"][0] <= cords[0] < (gun["cord"][0] + 35) and gun["cord"][1] <= cords[1] < (gun["cord"][1] + 35):
+            gun["health"] -= damage
+        elif gun["cord"][0] <= (cords[0] + 35) < (gun["cord"][0] + 35) and gun["cord"][1] <= cords[1] < (gun["cord"][1] + 35):
+            gun["health"] -= damage
+        elif gun["cord"][0] <= (cords[0] + 35) < (gun["cord"][0] + 35) and gun["cord"][1] <= (cords[1] + 35) < (gun["cord"][1] + 35):
+            gun["health"] -= damage
+        elif gun["cord"][0] <= cords[0] < (gun["cord"][0] + 35) and gun["cord"][1] <= (cords[1] + 35) < (gun["cord"][1] + 35):
+            gun["health"] -= damage
+
+
+    return game_state

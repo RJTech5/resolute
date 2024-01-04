@@ -3,7 +3,7 @@ import math
 import random
 import time
 from assets.pygameAssets import basic_gun, basic_enemy, basic_bullet
-from logic.enemyLogic import move_enemy, find_vectors
+from logic.enemyLogic import move_enemy, find_vectors, check_gun_collision
 from logic.gunLogic import fire_gun, despawn_check
 
 background_colour = (0, 0, 0)
@@ -13,6 +13,7 @@ cord_grid_offset = 35
 cord_grid_size = 735
 wave_increment = 360
 wave_duration = 800
+pygame.init()
 
 # game_state contains all information needed to run the game simulation
 # game_state is a dict where
@@ -63,12 +64,13 @@ bullet_example = {"cords": (), "damage": 10, "size": 3, "x_velocity":100, "y_vel
 # a enemy is a dict where
 # cord is a tuple containing the coordinates of the enemy
 # health is the health of a enemy
+# damage is the damage an enemy inflicts
 # target_cord is the cords of the enemy's target
 # x velocity is the velocity in x direction in pixels per second
 # y velocity is the velocity in y direction in pixels per second
 # damage is the amount of damage a enemy does when colliding with a gun
 # id is a random 6 digit number representing a enemy object
-enemy_example = {"cord":(), "health": 100, "target_cord": (), "x_velocity": 100, "y_velocity": 200, "id": 654321}
+enemy_example = {"cord":(), "health": 100, "damage": 10, "target_cord": (), "x_velocity": 100, "y_velocity": 200, "id": 654321}
 
 # An object is a passive object located in the game field
 # An object is a dict where
@@ -176,19 +178,22 @@ while running:
     # Creates menu items selectable by player
     for item in menu_items:
         if item['type'] == "basic":
-            basic_gun(pygame, screen, item["x"], item["y"])
+            basic_gun(pygame, screen, item["x"], item["y"], "")
 
     # Renders and fires guns
-    for gun in game_state["guns"]:
-        if gun["reload_timer"] <= 0:
-            target_cords, enemy = find_enemy((gun["cord"][0] + 17.5, gun["cord"][1] + 17.5))
-            if not enemy == None:
-                fire_gun((gun["cord"][0] + 17.5, gun["cord"][1] + 17.5), target_cords, gun["damage"],gun["velocity"], 3, game_state, enemy)
-                gun["reload_timer"] = gun["reload_time"]
-        else:
-            gun["reload_timer"] -= 1
+    for gun in enumerate(game_state["guns"]):
+        if gun[1]["health"] <= 0:
+            game_state["guns"].pop(gun[0])
 
-        basic_gun(pygame, screen, gun["cord"][0], gun["cord"][1])
+        if gun[1]["reload_timer"] <= 0:
+            target_cords, enemy = find_enemy((gun[1]["cord"][0] + 17.5, gun[1]["cord"][1] + 17.5))
+            if not enemy == None:
+                fire_gun((gun[1]["cord"][0] + 17.5, gun[1]["cord"][1] + 17.5), target_cords, gun[1]["damage"],gun[1]["velocity"], 3, game_state, enemy)
+                gun[1]["reload_timer"] = gun[1]["reload_time"]
+        else:
+            gun[1]["reload_timer"] -= 1
+
+        basic_gun(pygame, screen, gun[1]["cord"][0], gun[1]["cord"][1], gun[1]["health"])
 
     # renders and moves bullets
     for bullet in enumerate(game_state["bullets"]):
@@ -215,9 +220,10 @@ while running:
 
     # Renders and moves enemies
     for enemy in game_state["enemies"]:
+        check_gun_collision(enemy["cord"], game_state, enemy["damage"])
         enemy["target_cord"] = find_gun(enemy["cord"])
         move_enemy(enemy, game_state)
-        basic_enemy(pygame, screen, enemy["cord"][0], enemy["cord"][1])
+        basic_enemy(pygame, screen, enemy["cord"][0], enemy["cord"][1], enemy["health"])
 
     # creates an enemy and adds it to the gamestate
     if game_state["tot_ticks"] >= game_state["next_wave"]:
@@ -228,7 +234,7 @@ while running:
 
     # finds the number of enemies to spawn within 1 second
     if game_state["wave_left"] > 0 and game_state["ticks"] == 0:
-        number_spawn = random.randint(0,25)
+        number_spawn = random.randint(0, ((game_state["wave_count"] + 1) * 50) / 2)
         if number_spawn >= game_state["wave_left"]:
             number_spawn = game_state["wave_left"]
 
@@ -257,7 +263,7 @@ while running:
 
             id = get_id()
 
-            enemy_add = {"cord": cords, "health": 100, "target_cord": target_cords, "x_velocity": x_vector, "y_velocity": y_vector,
+            enemy_add = {"cord": cords, "health": 100, "damage": 4, "target_cord": target_cords, "x_velocity": x_vector, "y_velocity": y_vector,
                              "id": id}
 
             game_state["enemies"].append(enemy_add)

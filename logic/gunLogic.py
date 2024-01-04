@@ -34,7 +34,7 @@ def fire_gun(cords, target_cords, damage, velo, size, game_state, enemy):
     return game_state
 
 def despawn_check(cord, game_state):
-    if 753 < cord[0] < 0 or 735 < cord[1] < 0:
+    if 753 < cord[0] or cord[0] < 0 or 735 < cord[1] or cord[1] < 0:
         return True, None
 
     for enemy in game_state["enemies"]:
